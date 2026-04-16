@@ -922,10 +922,24 @@ describe('RankingView', () => {
   })
 
   it('loadAll fetches /ranking/weights and /ranking on mount', async () => {
+    let weightsRequested = false
+    let rankingRequested = false
+    server.use(
+      http.get('http://localhost/api/ranking/weights', () => {
+        weightsRequested = true
+        return HttpResponse.json({ data: { recency: 1, favorites: 2, comments: 1.5, moderatorBoost: 5, coldStartBase: 0.5 } })
+      }),
+      http.get('http://localhost/api/ranking', () => {
+        rankingRequested = true
+        return HttpResponse.json({ data: [] })
+      })
+    )
     const { default: C } = await import('../features/ranking/RankingView.vue')
     await mountView(C)
-    expect(requestLog.some(r => r.url.includes('/ranking/weights'))).toBe(true)
-    expect(requestLog.some(r => r.url.endsWith('/ranking') || r.url === '/api/ranking')).toBe(true)
+    await flushPromises()
+    await flushPromises()
+    expect(weightsRequested).toBe(true)
+    expect(rankingRequested).toBe(true)
   })
 
   it('saveWeights calls PUT /ranking/weights', async () => {
@@ -1233,7 +1247,11 @@ describe('InvoiceDetailView — helpers and extra actions', () => {
     )
     const { default: C } = await import('../features/billing/InvoiceDetailView.vue')
     const w = await mountView(C, { params: { id: 'inv-999' } })
+    // Extra flushes so invoice.value is populated (load() response fully processed)
+    await flushPromises()
+    await flushPromises()
     await ss(w).doVoid()
+    await flushPromises()
     expect(voidCalled).toBe(true)
   })
 })
@@ -1914,6 +1932,9 @@ describe('BulletinView — error paths', () => {
     ))
     const { default: C } = await import('../features/bulletins/BulletinView.vue')
     const w = await mountView(C)
+    // Extra flushes: error interceptor + catch block run after multiple microtask rounds
+    await flushPromises()
+    await flushPromises()
     expect(ss(w).error).toBeTruthy()
     expect(ss(w).bulletins).toEqual([])
   })
@@ -2010,6 +2031,8 @@ describe('VisitListView — doClose success and non-422 error', () => {
     ))
     const { default: C } = await import('../features/visits/VisitListView.vue')
     const w = await mountView(C)
+    await flushPromises()
+    await flushPromises()
     expect(ss(w).error).toBeTruthy()
   })
 
@@ -2035,6 +2058,8 @@ describe('IncidentListView — error paths', () => {
     ))
     const { default: C } = await import('../features/incidents/IncidentListView.vue')
     const w = await mountView(C)
+    await flushPromises()
+    await flushPromises()
     expect(ss(w).error).toBeTruthy()
   })
 
@@ -2064,6 +2089,8 @@ describe('PatientListView — error paths', () => {
     ))
     const { default: C } = await import('../features/patients/PatientListView.vue')
     const w = await mountView(C)
+    await flushPromises()
+    await flushPromises()
     expect(ss(w).error).toBeTruthy()
   })
 
@@ -2101,6 +2128,8 @@ describe('AdminUsersView — load error path', () => {
     ))
     const { default: C } = await import('../features/admin/AdminUsersView.vue')
     const w = await mountView(C)
+    await flushPromises()
+    await flushPromises()
     expect(ss(w).error).toBeTruthy()
   })
 })
