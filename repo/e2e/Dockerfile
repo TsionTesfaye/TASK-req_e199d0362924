@@ -1,5 +1,5 @@
 # Playwright test runner — Linux (Ubuntu Jammy), Node 18, Chromium pre-installed
-FROM mcr.microsoft.com/playwright:v1.44.0-jammy
+FROM mcr.microsoft.com/playwright:v1.59.1-jammy
 
 WORKDIR /e2e
 
