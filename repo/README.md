@@ -66,13 +66,15 @@ These accounts exist only inside the Docker test stack or H2 in-memory database 
 ## Quick Start
 
 ```bash
-cp .env.example .env
-# Edit .env and set ENCRYPTION_KEY to a real 64-hex-char value:
-#   export ENCRYPTION_KEY="$(openssl rand -hex 32)"
 docker compose up --build
 ```
 
-If `ENCRYPTION_KEY` is not set, `docker compose up` aborts immediately. This is intentional — there is no default production key anywhere in the stack.
+A dev-only `ENCRYPTION_KEY` default is provided so the stack starts without any setup. To use a real key (recommended for anything beyond local demo):
+
+```bash
+export ENCRYPTION_KEY="$(openssl rand -hex 32)"
+docker compose up --build
+```
 
 Once the stack is up, verify the backend is healthy:
 
@@ -166,7 +168,8 @@ Patient PII (name, phone, address) is encrypted at rest with AES-256-GCM. There 
 
 | Context | Key source |
 |---|---|
-| Production / staging / local Docker | `ENCRYPTION_KEY` environment variable (required, ≥32 bytes) |
+| Production / staging | `ENCRYPTION_KEY` environment variable (≥32 bytes); generate with `openssl rand -hex 32` |
+| Local Docker (no env set) | `dev-only-insecure-key-change-before-prod!!` (docker-compose.yml default — never use in production) |
 | JUnit unit tests (`@ActiveProfiles("test")`) | Fixed 32-char key in `application-test.yml` (public, intentional) |
 | API integration tests (`run_tests.sh`) | `test-only-key-32-bytes-for-ci-runs-00` (set by `run_tests.sh` if `ENCRYPTION_KEY` is unset) |
 

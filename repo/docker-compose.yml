@@ -28,9 +28,9 @@ services:
       SPRING_DATASOURCE_USERNAME: rescue
       SPRING_DATASOURCE_PASSWORD: rescuepw
       RESCUEHUB_STORAGE_DIR: /storage
-      # REQUIRED. No fallback. Backend container fails to start if unset.
-      # The "?" form makes `docker compose up` itself fail with a clear message.
-      ENCRYPTION_KEY: "${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set (32+ bytes). Export it in your shell or set it in a .env file before starting the stack.}"
+      # Dev/demo default — safe to use locally; MUST be overridden in production.
+      # Override by exporting ENCRYPTION_KEY in your shell or setting it in a .env file.
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY:-dev-only-insecure-key-change-before-prod!!}"
     depends_on:
       mysql:
         condition: service_healthy
