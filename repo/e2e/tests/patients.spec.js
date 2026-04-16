@@ -25,7 +25,7 @@ test.describe('Patients', () => {
 
     await page.getByRole('button', { name: /Register Patient/i }).click()
     await expect(page.locator('.dialog-title')).toContainText('Register Patient')
-    await expect(page.getByRole('button', { name: 'Register' })).toBeVisible()
+    await expect(page.locator('.dialog-box').getByRole('button', { name: 'Register' })).toBeVisible()
   })
 
   test('can register a new patient and it appears in the list', async ({ page }) => {

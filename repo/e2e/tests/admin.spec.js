@@ -63,6 +63,7 @@ test.describe('Admin — User Management', () => {
     await page.getByRole('button', { name: /New User/i }).click()
     const dialog = page.locator('.dialog-box')
     await dialog.locator('.field').filter({ hasText: 'Username' }).locator('input').fill(newUsername)
+    await dialog.locator('.field').filter({ hasText: 'Display Name' }).locator('input').fill(`E2E Login ${ts}`)
     await dialog.locator('.field').filter({ hasText: 'Password' }).locator('input[type="password"]').fill(newPassword)
     await dialog.locator('.field').filter({ hasText: 'Role' }).locator('select').selectOption('FRONT_DESK')
     await dialog.getByRole('button', { name: 'Create' }).click()
