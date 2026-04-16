@@ -1,0 +1,9 @@
+FROM maven:3.9.9-eclipse-temurin-17
+WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+# Run verify at build time to pre-populate the Maven cache with ALL dependencies
+# (surefire, JaCoCo, H2, etc.) and confirm tests + coverage pass before the image
+# is tagged. The CMD then re-runs verify offline, which is what compose reports.
+RUN mvn -B verify
+CMD ["mvn", "-B", "-o", "verify"]

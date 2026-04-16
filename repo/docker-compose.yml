@@ -1,0 +1,98 @@
+name: rescuehub
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: rescuehub
+      MYSQL_USER: rescue
+      MYSQL_PASSWORD: rescuepw
+    # Database is not exposed to the host. Access via backend or a one-off
+    # `docker compose exec mysql mysql ...` for DBA operations.
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-prootpw"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/rescuehub?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: rescue
+      SPRING_DATASOURCE_PASSWORD: rescuepw
+      RESCUEHUB_STORAGE_DIR: /storage
+      # REQUIRED. No fallback. Backend container fails to start if unset.
+      # The "?" form makes `docker compose up` itself fail with a clear message.
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set (32+ bytes). Export it in your shell or set it in a .env file before starting the stack.}"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    # Backend has NO host port. All ingress is through the TLS-terminating
+    # nginx reverse proxy in the `frontend` service.
+    expose:
+      - "8080"
+    volumes:
+      - ./storage:/storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      # TLS ingress (HTTPS). HTTP on :15173 redirects to HTTPS on :15443.
+      - "15173:80"
+      - "15443:443"
+    depends_on:
+      - backend
+
+  backend-tests:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    # Tests use H2 via application-test.yml — no MySQL env overrides.
+    profiles: ["tests"]
+
+  frontend-tests:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.test
+    profiles: ["tests"]
+
+  api-tests:
+    build:
+      context: ./tests
+    depends_on:
+      backend:
+        condition: service_healthy
+      backend-tests:
+        condition: service_completed_successfully
+      frontend-tests:
+        condition: service_completed_successfully
+    profiles: ["tests"]
+
+  e2e-tests:
+    build:
+      context: ./e2e
+    environment:
+      PLAYWRIGHT_BASE_URL: https://frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    profiles: ["tests"]
+
+volumes:
+  mysql_data:

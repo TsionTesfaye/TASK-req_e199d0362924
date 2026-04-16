@@ -1,0 +1,21 @@
+# Environment files — never commit real keys
+.env
+.env.local
+
+# Claude Code IDE settings — machine-specific, not part of the project
+.claude/
+
+# Temporary analysis files generated during development
+.tmp/
+
+# Storage volume (exports, backups, media) — mounted at runtime
+storage/
+
+# Build artifacts
+backend/target/
+frontend/dist/
+frontend/node_modules/
+
+# OS artifacts
+.DS_Store
+Thumbs.db

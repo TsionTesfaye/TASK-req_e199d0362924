@@ -1,0 +1,8 @@
+FROM node:18-alpine
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+COPY . .
+# Run with coverage so Vitest enforces the thresholds defined in vite.config.js.
+# Exit code is non-zero if coverage is below threshold.
+CMD ["npm", "run", "test:coverage"]

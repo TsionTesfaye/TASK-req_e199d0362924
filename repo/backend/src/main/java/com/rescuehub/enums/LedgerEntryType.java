@@ -1,0 +1,5 @@
+package com.rescuehub.enums;
+
+public enum LedgerEntryType {
+    INVOICE_GENERATED, PAYMENT_RECORDED, REFUND_EXECUTED, INVOICE_VOIDED, TAX_RECORDED, DISCOUNT_RECORDED
+}
