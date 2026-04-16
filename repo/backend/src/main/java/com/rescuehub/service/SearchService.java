@@ -27,7 +27,7 @@ public class SearchService {
         this.bulletinRepo = bulletinRepo;
     }
 
-    public record SearchResult(String contentType, Object item, double score) {}
+    public record SearchResult(Long id, String type, double score) {}
 
     @Transactional(readOnly = true)
     public List<SearchResult> search(User actor, String q, String contentType, String sort, int page, int size) {
@@ -51,7 +51,7 @@ public class SearchService {
             Page<IncidentReport> incidents = incidentRepo.searchVisible(actor.getOrganizationId(), query, excludedIncident, pageable);
             for (IncidentReport i : incidents) {
                 double score = computeScore(i.getFavoriteCount(), i.getCommentCount(), i.getViewCount(), i.getCreatedAt().toEpochMilli());
-                results.add(new SearchResult("incident", i, score));
+                results.add(new SearchResult(i.getId(), "incident", score));
             }
         }
 
@@ -59,44 +59,13 @@ public class SearchService {
             Page<Bulletin> bulletins = bulletinRepo.searchVisible(actor.getOrganizationId(), query, excludedBulletin, pageable);
             for (Bulletin b : bulletins) {
                 double score = computeScore(b.getFavoriteCount(), b.getCommentCount(), b.getViewCount(), b.getCreatedAt().toEpochMilli());
-                results.add(new SearchResult("bulletin", b, score));
+                results.add(new SearchResult(b.getId(), "bulletin", score));
             }
         }
 
-        // Apply the requested sort mode in-memory across the merged incident + bulletin results
-        if (sort != null && !sort.isBlank()) {
-            results.sort((a, b) -> Long.compare(extractSortKey(b.item(), sort), extractSortKey(a.item(), sort)));
-        } else {
-            results.sort((a, b) -> Double.compare(b.score(), a.score()));
-        }
+        // Sort merged results by precomputed score (DB-level sort already pre-ordered each set)
+        results.sort((a, b) -> Double.compare(b.score(), a.score()));
         return results;
-    }
-
-    /** Extract the numeric sort key for a given sort mode from an IncidentReport or Bulletin. */
-    private static long extractSortKey(Object item, String sort) {
-        return switch (sort.toLowerCase()) {
-            case "recent" -> {
-                if (item instanceof IncidentReport i) yield i.getCreatedAt().toEpochMilli();
-                if (item instanceof Bulletin b) yield b.getCreatedAt().toEpochMilli();
-                yield 0L;
-            }
-            case "popular" -> {
-                if (item instanceof IncidentReport i) yield i.getViewCount();
-                if (item instanceof Bulletin b) yield b.getViewCount();
-                yield 0L;
-            }
-            case "favorites" -> {
-                if (item instanceof IncidentReport i) yield i.getFavoriteCount();
-                if (item instanceof Bulletin b) yield b.getFavoriteCount();
-                yield 0L;
-            }
-            case "comments" -> {
-                if (item instanceof IncidentReport i) yield i.getCommentCount();
-                if (item instanceof Bulletin b) yield b.getCommentCount();
-                yield 0L;
-            }
-            default -> 0L;
-        };
     }
 
     private double computeScore(long favorites, long comments, long views, long createdMillis) {

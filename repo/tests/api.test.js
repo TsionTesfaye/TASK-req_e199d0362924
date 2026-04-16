@@ -681,7 +681,12 @@ function assertEq(a, b, msg) {
     if (list.status !== 200) throw new Error("user list status=" + list.status);
     const users = list.json.data || [];
     if (users.length === 0) throw new Error("no users in admin list");
-    adminTargetUserId = users[0].id;
+    // Pick a non-admin user so the PUT below does not accidentally downgrade the admin account.
+    // Prefer the front_desk user (role already FRONT_DESK) so the PUT body is a safe no-op for role.
+    const nonAdmin = users.find(u => u.username === "front_desk")
+      || users.find(u => u.role !== "ADMIN" && u.username !== "admin")
+      || users[0];
+    adminTargetUserId = nonAdmin.id;
     const r = await call("GET", `/admin/users/${adminTargetUserId}`, { token: adminToken });
     if (r.status !== 200) throw new Error("GET /admin/users/{id} status=" + r.status);
     if (!r.json.data.id) throw new Error("user detail missing id");

@@ -12,7 +12,7 @@ public class IncidentMediaFile {
     @Column(nullable = false) private String fileName;
     @Column(nullable = false) private String fileType;
     @Column(nullable = false) private long fileSizeBytes;
-    @Column(nullable = false) private String sha256Hash;
+    @Column(name = "sha256_hash", nullable = false) private String sha256Hash;
     @Column(nullable = false) private String storagePath;
     private Long uploadedByUserId;
     @Column(nullable = false) private Instant createdAt;

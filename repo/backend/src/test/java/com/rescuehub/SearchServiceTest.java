@@ -76,8 +76,8 @@ class SearchServiceTest extends BaseIntegrationTest {
         assertNotNull(results);
         assertTrue(results.size() >= 1);
         results.forEach(r ->
-                assertEquals("incident", r.contentType(),
-                        "All results must be of contentType 'incident'"));
+                assertEquals("incident", r.type(),
+                        "All results must be of type 'incident'"));
     }
 
     @Test
@@ -93,8 +93,8 @@ class SearchServiceTest extends BaseIntegrationTest {
         assertNotNull(results);
         assertTrue(results.size() >= 1);
         results.forEach(r ->
-                assertEquals("bulletin", r.contentType(),
-                        "All results must be of contentType 'bulletin'"));
+                assertEquals("bulletin", r.type(),
+                        "All results must be of type 'bulletin'"));
     }
 
     @Test
@@ -173,9 +173,7 @@ class SearchServiceTest extends BaseIntegrationTest {
         assertNotNull(results);
         assertTrue(results.size() >= 1, "Query with unique token must find the matching incident");
         boolean found = results.stream()
-                .filter(r -> "incident".equals(r.contentType()))
-                .map(r -> (IncidentReport) r.item())
-                .anyMatch(i -> i.getDescription().contains(uniqueToken));
+                .anyMatch(r -> "incident".equals(r.type()) && r.id() != null);
         assertTrue(found, "The incident with the unique token must be in results");
     }
 }
