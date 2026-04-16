@@ -721,7 +721,7 @@ function assertEq(a, b, msg) {
     const r = await call("POST", "/admin/access-control", {
       token: adminToken, csrf: adminCsrf,
       body: {
-        listType: "BLOCKLIST",
+        listType: "DENY",
         subjectType: "IP",
         subjectValue: "192.168.99.99",
         reason: "integration test block",

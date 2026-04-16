@@ -7,7 +7,9 @@ import com.rescuehub.security.SecurityUtils;
 import com.rescuehub.service.RiskScoreService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/risk-scores")
@@ -29,8 +31,9 @@ public class RiskScoreController {
     public Map<String, Object> list() {
         User actor = SecurityUtils.currentUser();
         roleGuard.require(actor, Role.ADMIN);
-        return ApiResponse.data(ApiResponse.safeMap(
-                "ephemeral", riskScoreService.isEphemeral(),
-                "scores", riskScoreService.getAllScores()));
+        List<Map<String, Object>> scores = riskScoreService.getAllScores().entrySet().stream()
+                .map(e -> ApiResponse.safeMap("workstationId", e.getKey(), "score", e.getValue()))
+                .collect(Collectors.toList());
+        return ApiResponse.data(scores);
     }
 }
