@@ -1384,6 +1384,380 @@ function assertEq(a, b, msg) {
     if (![200, 201, 204, 409, 422].includes(r.status)) throw new Error("unexpected status=" + r.status);
   });
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // RESPONSE CONTRACT ASSERTIONS — required fields / types on success
+  // ═══════════════════════════════════════════════════════════════════════
+
+  await test("GET /patients/{id} response has required fields", async () => {
+    const r = await call("GET", `/patients/${patientId}`, { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    const d = r.json.data;
+    if (!d.id) throw new Error("missing id");
+    if (!d.medicalRecordNumber) throw new Error("missing medicalRecordNumber");
+    if (!d.dateOfBirth) throw new Error("missing dateOfBirth");
+  });
+
+  await test("GET /visits/{id} response has required fields", async () => {
+    const r = await call("GET", `/visits/${visitId}`, { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    const d = r.json.data;
+    if (!d.id) throw new Error("missing id");
+    if (!d.patientId) throw new Error("missing patientId");
+  });
+
+  await test("GET /invoices/{id} response has required fields", async () => {
+    const r = await call("GET", `/invoices/${invoiceId}`, { token: billSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    const d = r.json.data;
+    if (!d.id) throw new Error("missing id");
+    if (!d.visitId) throw new Error("missing visitId");
+    if (!d.status) throw new Error("missing status");
+    if (d.totalAmount === undefined) throw new Error("missing totalAmount");
+    if (d.outstandingAmount === undefined) throw new Error("missing outstandingAmount");
+  });
+
+  await test("GET /incidents/{id} response has required fields", async () => {
+    const r = await call("GET", `/incidents/${sampleIncidentId}`, { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    const d = r.json.data;
+    if (!d.id) throw new Error("missing id");
+    if (!d.category) throw new Error("missing category");
+    if (!d.status) throw new Error("missing status");
+  });
+
+  await test("GET /bulletins/{id} response has required fields", async () => {
+    const r = await call("GET", `/bulletins/${bulletinId}`, { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    const d = r.json.data;
+    if (!d.id) throw new Error("missing id");
+  });
+
+  await test("GET /shelters/{id} response has required fields", async () => {
+    const r = await call("GET", `/shelters/${shelterId}`, { token: adminToken });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    const d = r.json.data;
+    if (!d.id) throw new Error("missing id");
+    if (!d.name) throw new Error("missing name");
+  });
+
+  await test("GET /appointments/{id} response has required fields", async () => {
+    const r = await call("GET", `/appointments/${appointmentId}`, { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    const d = r.json.data;
+    if (!d.id) throw new Error("missing id");
+  });
+
+  await test("GET /backups returns array with entries having id and status", async () => {
+    const r = await call("GET", "/backups?page=0&size=5", { token: adminToken });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("data is not array");
+    const entry = r.json.data[0];
+    if (!entry) throw new Error("no backup entries");
+    if (!entry.id) throw new Error("missing id");
+    if (!entry.status) throw new Error("missing status");
+  });
+
+  await test("GET /admin/users list entries have required fields", async () => {
+    const r = await call("GET", "/admin/users", { token: adminToken });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("data is not array");
+    const u = r.json.data[0];
+    if (!u) throw new Error("no user entries");
+    if (!u.id) throw new Error("missing id");
+    if (!u.username) throw new Error("missing username");
+    if (!u.role) throw new Error("missing role");
+  });
+
+  await test("GET /quality/corrective-actions/{id} response has required fields", async () => {
+    const r = await call("GET", `/quality/corrective-actions/${caId}`, { token: qualSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    const d = r.json.data;
+    if (!d.id) throw new Error("missing id");
+    if (!d.status) throw new Error("missing status");
+  });
+
+  await test("GET /invoices/{id}/payments returns array", async () => {
+    const r = await call("GET", `/invoices/${invoiceId}/payments`, { token: billSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("data is not array");
+  });
+
+  await test("400 error responses include a message field", async () => {
+    const r = await call("POST", "/patients", {
+      token: frontSess.token, csrf: frontSess.csrf,
+      body: { /* missing all required fields */ },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+    if (!r.json.message && !r.json.error) throw new Error("400 body missing message/error field: " + JSON.stringify(r.json));
+  });
+
+  await test("403 error responses have non-empty body", async () => {
+    const r = await call("GET", "/admin/users", { token: clinSess.token });
+    if (r.status !== 403) throw new Error("expected 403, got " + r.status);
+    const body = JSON.stringify(r.json);
+    if (body === "{}") throw new Error("403 body is empty object");
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PAGINATION BOUNDARY TESTS — page, size, empty pages, sort
+  // ═══════════════════════════════════════════════════════════════════════
+
+  await test("GET /patients?page=0&size=1 returns at most 1 result", async () => {
+    const r = await call("GET", "/patients?page=0&size=1", { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+    if (r.json.data.length > 1) throw new Error("size=1 returned " + r.json.data.length + " items");
+  });
+
+  await test("GET /patients?page=0&size=1 meta echoes back page and size", async () => {
+    const r = await call("GET", "/patients?page=0&size=1", { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!r.json.meta) throw new Error("missing meta");
+    if (r.json.meta.size !== 1) throw new Error("meta.size expected 1, got " + r.json.meta.size);
+    if (r.json.meta.page !== 0) throw new Error("meta.page expected 0, got " + r.json.meta.page);
+  });
+
+  await test("GET /patients?page=9999 returns empty array", async () => {
+    const r = await call("GET", "/patients?page=9999&size=20", { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+    if (r.json.data.length !== 0) throw new Error("out-of-range page should return empty array");
+  });
+
+  await test("GET /incidents?page=9999 returns empty array", async () => {
+    const r = await call("GET", "/incidents?page=9999&size=20", { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+    if (r.json.data.length !== 0) throw new Error("out-of-range page should return empty array");
+  });
+
+  await test("GET /bulletins?page=9999 returns empty array", async () => {
+    const r = await call("GET", "/bulletins?page=9999&size=20", { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+    if (r.json.data.length !== 0) throw new Error("out-of-range page should return empty array");
+  });
+
+  await test("GET /appointments?page=9999 returns empty array", async () => {
+    const r = await call("GET", "/appointments?page=9999&size=20", { token: clinSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+    if (r.json.data.length !== 0) throw new Error("out-of-range page should return empty array");
+  });
+
+  await test("GET /quality/corrective-actions?page=9999 returns empty array", async () => {
+    const r = await call("GET", "/quality/corrective-actions?page=9999&size=20", { token: qualSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+    if (r.json.data.length !== 0) throw new Error("out-of-range page should return empty array");
+  });
+
+  await test("GET /invoices?page=9999 returns empty array", async () => {
+    const r = await call("GET", "/invoices?page=9999&size=20", { token: billSess.token });
+    if (r.status !== 200) throw new Error("status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+    if (r.json.data.length !== 0) throw new Error("out-of-range page should return empty array");
+  });
+
+  await test("GET /patients size>200 is rejected (PageBounds.MAX_SIZE)", async () => {
+    const r = await call("GET", "/patients?page=0&size=201", { token: clinSess.token });
+    if (r.status !== 400 && r.status !== 422) throw new Error("expected 400 or 422 for size>200, got " + r.status);
+  });
+
+  await test("GET /patients with negative page is rejected", async () => {
+    const r = await call("GET", "/patients?page=-1&size=20", { token: clinSess.token });
+    if (r.status !== 400 && r.status !== 422) throw new Error("expected 400 or 422 for negative page, got " + r.status);
+  });
+
+  await test("GET /search?sort=popular returns 200 with array", async () => {
+    const r = await call("GET", "/search?q=test&sort=popular", { token: clinSess.token });
+    if (r.status !== 200) throw new Error("sort=popular status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+  });
+
+  await test("GET /search?sort=favorites returns 200 with array", async () => {
+    const r = await call("GET", "/search?q=test&sort=favorites", { token: clinSess.token });
+    if (r.status !== 200) throw new Error("sort=favorites status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+  });
+
+  await test("GET /search?sort=comments returns 200 with array", async () => {
+    const r = await call("GET", "/search?q=test&sort=comments", { token: clinSess.token });
+    if (r.status !== 200) throw new Error("sort=comments status=" + r.status);
+    if (!Array.isArray(r.json.data)) throw new Error("not array");
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // VALIDATION MATRIX — missing required fields, bad enums, malformed JSON
+  // ═══════════════════════════════════════════════════════════════════════
+
+  await test("POST /patients missing firstName returns 400", async () => {
+    const r = await call("POST", "/patients", {
+      token: frontSess.token, csrf: frontSess.csrf,
+      body: { lastName: "Test", dateOfBirth: "1990-01-01" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /patients missing lastName returns 400", async () => {
+    const r = await call("POST", "/patients", {
+      token: frontSess.token, csrf: frontSess.csrf,
+      body: { firstName: "Test", dateOfBirth: "1990-01-01" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /patients missing dateOfBirth returns 400", async () => {
+    const r = await call("POST", "/patients", {
+      token: frontSess.token, csrf: frontSess.csrf,
+      body: { firstName: "Test", lastName: "User" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /visits missing patientId returns 400", async () => {
+    const r = await call("POST", "/visits", {
+      token: clinSess.token, csrf: clinSess.csrf,
+      idem: randomUUID(),
+      body: { chiefComplaint: "headache" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /appointments missing patientId returns 400", async () => {
+    const r = await call("POST", "/appointments", {
+      token: clinSess.token, csrf: clinSess.csrf,
+      body: { scheduledAt: new Date().toISOString() },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /invoices/{id}/payments missing amount returns 400", async () => {
+    const r = await call("POST", `/invoices/${invoiceId}/payments`, {
+      token: billSess.token, csrf: billSess.csrf,
+      body: { method: "CASH" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /invoices/{id}/payments invalid method enum returns 400", async () => {
+    const r = await call("POST", `/invoices/${invoiceId}/payments`, {
+      token: billSess.token, csrf: billSess.csrf,
+      body: { amount: 10, method: "INVALID_METHOD" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /incidents missing category returns 400", async () => {
+    const r = await call("POST", "/incidents", {
+      token: frontSess.token, csrf: frontSess.csrf,
+      idem: randomUUID(),
+      body: { description: "test", approximateLocationText: "here" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /incidents invalid category enum returns 400", async () => {
+    const r = await call("POST", "/incidents", {
+      token: frontSess.token, csrf: frontSess.csrf,
+      idem: randomUUID(),
+      body: { category: "NOT_A_CATEGORY", description: "test", approximateLocationText: "here" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /bulletins missing body returns 400", async () => {
+    const r = await call("POST", "/bulletins", {
+      token: modSess.token, csrf: modSess.csrf,
+      body: { title: "No body bulletin" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /bulletins missing title returns 400", async () => {
+    const r = await call("POST", "/bulletins", {
+      token: modSess.token, csrf: modSess.csrf,
+      body: { body: "No title" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /admin/users missing username returns 400", async () => {
+    const r = await call("POST", "/admin/users", {
+      token: adminToken, csrf: adminCsrf,
+      body: { password: "Pass123!", displayName: "No user", role: "FRONT_DESK" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /admin/users missing password returns 400", async () => {
+    const r = await call("POST", "/admin/users", {
+      token: adminToken, csrf: adminCsrf,
+      body: { username: "nopwuser", displayName: "No pw", role: "FRONT_DESK" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /admin/users missing displayName returns 400", async () => {
+    const r = await call("POST", "/admin/users", {
+      token: adminToken, csrf: adminCsrf,
+      body: { username: "nodisplay", password: "Pass123!", role: "FRONT_DESK" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /admin/users invalid role enum returns 400", async () => {
+    const r = await call("POST", "/admin/users", {
+      token: adminToken, csrf: adminCsrf,
+      body: { username: "badrole", password: "Pass123!", displayName: "Bad Role", role: "SUPERUSER" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /quality/corrective-actions missing description returns 400", async () => {
+    const r = await call("POST", "/quality/corrective-actions", {
+      token: qualSess.token, csrf: qualSess.csrf,
+      body: {},
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("PUT /quality/corrective-actions/{id} invalid status enum returns 400", async () => {
+    const r = await call("PUT", `/quality/corrective-actions/${caId}`, {
+      token: qualSess.token, csrf: qualSess.csrf,
+      body: { status: "NOT_A_STATUS" },
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("POST /backups/{id}/restore-test invalid result enum returns 400", async () => {
+    const r = await call("POST", `/backups/${backupId}/restore-test`, {
+      token: adminToken, csrf: adminCsrf,
+      body: { result: "UNKNOWN", notes: "bad enum" },
+    });
+    if (r.status !== 400) throw new Error("expected 400 for invalid RestoreTestResult, got " + r.status);
+  });
+
+  await test("POST /exports missing type returns 400", async () => {
+    const r = await call("POST", "/exports", {
+      token: billSess.token, csrf: billSess.csrf,
+      body: {},
+    });
+    if (r.status !== 400) throw new Error("expected 400, got " + r.status);
+  });
+
+  await test("malformed JSON body returns 400", async () => {
+    const headers = { "Content-Type": "application/json" };
+    headers["X-Session-Token"] = frontSess.token;
+    headers["X-CSRF-Token"] = frontSess.csrf;
+    const res = await fetch(BASE + "/patients", {
+      method: "POST",
+      headers,
+      body: "{ not valid json !!",
+    });
+    if (res.status !== 400) throw new Error("expected 400 for malformed JSON, got " + res.status);
+  });
+
   console.log(failures === 0 ? "ALL API TESTS PASSED" : `FAILURES: ${failures}`);
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => {
