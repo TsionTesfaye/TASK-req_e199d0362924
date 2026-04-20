@@ -219,11 +219,11 @@ Scope: Revalidated the exact 11 issues provided by requester; no app startup, no
 - Recheck conclusion: **Fixed**
 - Evidence:
   - README clarifies strictness + test-only exceptions:
-    - `README.md:18-21`
     - `README.md:121-125`
-    - `README.md:138-146`
+    - `README.md:123`
   - Test script fallback explicitly marked test-only:
     - `run_tests.sh:5-8`
+- Note: Prior citation `README.md:18-21` did not support encryption-key strictness and has been removed. Prior citation `README.md:138-146` was incorrect (README has 133 lines); removed and replaced with the actual supporting line `README.md:123` (`Set ENCRYPTION_KEY securely outside local demo contexts`).
 - Impact after fix:
   - Prior ambiguity between runtime strictness and test harness behavior is resolved.
 - Minimum action remaining:

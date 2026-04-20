@@ -5,5 +5,5 @@
     "backend_language": "Java",
     "frontend_framework": "Vue.js (SPA)",
     "backend_framework": "Spring Boot",
-    "database": "MySQL + Local filesystem"
+    "database": "MySQL"
   }
